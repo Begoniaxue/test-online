@@ -11,7 +11,7 @@
         </div>
       </template>
       
-      <el-table :data="questions" stripe>
+      <el-table :data="pagedQuestions" stripe style="width: 100%">
         <el-table-column prop="id" label="ID" width="80" />
         <el-table-column prop="type" label="题型" width="100">
           <template #default="{ row }">
@@ -27,13 +27,26 @@
         <el-table-column prop="optionD" label="选项D" width="150" show-overflow-tooltip />
         <el-table-column prop="answer" label="答案" width="80" />
         <el-table-column prop="score" label="分值" width="80" />
-        <el-table-column label="操作" width="150">
+        <el-table-column label="操作" width="150" fixed="right">
           <template #default="{ row }">
             <el-button size="small" type="primary" link @click="openEditDialog(row)">编辑</el-button>
             <el-button size="small" type="danger" link @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
+
+      <div class="pagination-wrapper">
+        <el-pagination
+          v-model:current-page="currentPage"
+          v-model:page-size="pageSize"
+          :page-sizes="[5, 10, 20, 50]"
+          :total="questions.length"
+          layout="total, sizes, prev, pager, next, jumper"
+          background
+          @size-change="handleSizeChange"
+          @current-change="handleCurrentChange"
+        />
+      </div>
     </el-card>
 
     <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑题目' : '新增题目'" width="600px">
@@ -75,7 +88,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getQuestions, addQuestion, updateQuestion, deleteQuestion } from '../../api'
 
@@ -83,7 +96,25 @@ const questions = ref([])
 const dialogVisible = ref(false)
 const isEdit = ref(false)
 const formRef = ref(null)
-const form = ref({
+const currentPage = ref(1)
+const pageSize = ref(10)
+
+const pagedQuestions = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  const end = start + pageSize.value
+  return questions.value.slice(start, end)
+})
+
+const handleSizeChange = (size) => {
+  pageSize.value = size
+  currentPage.value = 1
+}
+
+const handleCurrentChange = (page) => {
+  currentPage.value = page
+}
+
+const getInitialForm = () => ({
   id: null,
   type: 'SINGLE',
   content: '',
@@ -95,6 +126,8 @@ const form = ref({
   score: 10
 })
 
+const form = ref(getInitialForm())
+
 const rules = {
   type: [{ required: true, message: '请选择题型', trigger: 'change' }],
   content: [{ required: true, message: '请输入题目内容', trigger: 'blur' }],
@@ -105,29 +138,47 @@ const rules = {
   answer: [{ required: true, message: '请输入答案', trigger: 'blur' }]
 }
 
+const resetForm = () => {
+  form.value = getInitialForm()
+  nextTick(() => {
+    formRef.value?.clearValidate()
+  })
+}
+
+watch(dialogVisible, (val) => {
+  if (!val) {
+    nextTick(() => {
+      formRef.value?.clearValidate()
+    })
+  }
+})
+
 const loadQuestions = async () => {
   questions.value = await getQuestions()
 }
 
 const openAddDialog = () => {
   isEdit.value = false
-  form.value = {
-    id: null,
-    type: 'SINGLE',
-    content: '',
-    optionA: '',
-    optionB: '',
-    optionC: '',
-    optionD: '',
-    answer: '',
-    score: 10
-  }
+  resetForm()
   dialogVisible.value = true
 }
 
 const openEditDialog = (row) => {
   isEdit.value = true
-  form.value = { ...row }
+  form.value = {
+    id: row.id,
+    type: row.type,
+    content: row.content,
+    optionA: row.optionA,
+    optionB: row.optionB,
+    optionC: row.optionC,
+    optionD: row.optionD,
+    answer: row.answer,
+    score: row.score
+  }
+  nextTick(() => {
+    formRef.value?.clearValidate()
+  })
   dialogVisible.value = true
 }
 
@@ -174,5 +225,10 @@ onMounted(() => {
 }
 .card-header h3 {
   margin: 0;
+}
+.pagination-wrapper {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
 }
 </style>
