@@ -73,7 +73,18 @@
           <el-input v-model="form.optionD" placeholder="请输入选项D" />
         </el-form-item>
         <el-form-item label="答案" prop="answer">
-          <el-input v-model="form.answer" placeholder="如A或ABD" />
+          <el-radio-group v-if="form.type === 'SINGLE'" v-model="answerValue">
+            <el-radio value="A">A. {{ form.optionA || '选项A' }}</el-radio>
+            <el-radio value="B">B. {{ form.optionB || '选项B' }}</el-radio>
+            <el-radio value="C">C. {{ form.optionC || '选项C' }}</el-radio>
+            <el-radio value="D">D. {{ form.optionD || '选项D' }}</el-radio>
+          </el-radio-group>
+          <el-checkbox-group v-else v-model="answerValue">
+            <el-checkbox value="A">A. {{ form.optionA || '选项A' }}</el-checkbox>
+            <el-checkbox value="B">B. {{ form.optionB || '选项B' }}</el-checkbox>
+            <el-checkbox value="C">C. {{ form.optionC || '选项C' }}</el-checkbox>
+            <el-checkbox value="D">D. {{ form.optionD || '选项D' }}</el-checkbox>
+          </el-checkbox-group>
         </el-form-item>
         <el-form-item label="分值" prop="score">
           <el-input-number v-model="form.score" :min="1" :max="100" />
@@ -98,6 +109,7 @@ const isEdit = ref(false)
 const formRef = ref(null)
 const currentPage = ref(1)
 const pageSize = ref(10)
+const answerValue = ref('')
 
 const pagedQuestions = computed(() => {
   const start = (currentPage.value - 1) * pageSize.value
@@ -135,15 +147,28 @@ const rules = {
   optionB: [{ required: true, message: '请输入选项B', trigger: 'blur' }],
   optionC: [{ required: true, message: '请输入选项C', trigger: 'blur' }],
   optionD: [{ required: true, message: '请输入选项D', trigger: 'blur' }],
-  answer: [{ required: true, message: '请输入答案', trigger: 'blur' }]
+  answer: [{ required: true, message: '请选择答案', trigger: 'change' }]
 }
 
 const resetForm = () => {
   form.value = getInitialForm()
+  answerValue.value = ''
   nextTick(() => {
     formRef.value?.clearValidate()
   })
 }
+
+watch(() => form.value.type, (newType) => {
+  answerValue.value = newType === 'SINGLE' ? '' : []
+})
+
+watch(answerValue, (newVal) => {
+  if (form.value.type === 'SINGLE') {
+    form.value.answer = newVal || ''
+  } else {
+    form.value.answer = newVal && newVal.length > 0 ? newVal.sort().join('') : ''
+  }
+}, { deep: true })
 
 watch(dialogVisible, (val) => {
   if (!val) {
@@ -175,6 +200,11 @@ const openEditDialog = (row) => {
     optionD: row.optionD,
     answer: row.answer,
     score: row.score
+  }
+  if (row.type === 'SINGLE') {
+    answerValue.value = row.answer || ''
+  } else {
+    answerValue.value = row.answer ? row.answer.split('') : []
   }
   nextTick(() => {
     formRef.value?.clearValidate()
