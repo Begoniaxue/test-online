@@ -36,7 +36,7 @@
       </el-table>
     </el-card>
 
-    <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑题目' : '新增题目'" width="600px">
+    <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑题目' : '新增题目'" width="600px" @close="resetForm">
       <el-form :model="form" label-width="80px" :rules="rules" ref="formRef">
         <el-form-item label="题型" prop="type">
           <el-radio-group v-model="form.type">
@@ -75,7 +75,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getQuestions, addQuestion, updateQuestion, deleteQuestion } from '../../api'
 
@@ -83,7 +83,8 @@ const questions = ref([])
 const dialogVisible = ref(false)
 const isEdit = ref(false)
 const formRef = ref(null)
-const form = ref({
+
+const getInitialForm = () => ({
   id: null,
   type: 'SINGLE',
   content: '',
@@ -94,6 +95,15 @@ const form = ref({
   answer: '',
   score: 10
 })
+
+const form = ref(getInitialForm())
+
+const resetForm = () => {
+  if (formRef.value) {
+    formRef.value.resetFields()
+  }
+  form.value = getInitialForm()
+}
 
 const rules = {
   type: [{ required: true, message: '请选择题型', trigger: 'change' }],
@@ -111,23 +121,16 @@ const loadQuestions = async () => {
 
 const openAddDialog = () => {
   isEdit.value = false
-  form.value = {
-    id: null,
-    type: 'SINGLE',
-    content: '',
-    optionA: '',
-    optionB: '',
-    optionC: '',
-    optionD: '',
-    answer: '',
-    score: 10
-  }
+  resetForm()
   dialogVisible.value = true
 }
 
 const openEditDialog = (row) => {
   isEdit.value = true
-  form.value = { ...row }
+  resetForm()
+  nextTick(() => {
+    form.value = { ...row }
+  })
   dialogVisible.value = true
 }
 
@@ -142,6 +145,7 @@ const handleSubmit = async () => {
       ElMessage.success('添加成功')
     }
     dialogVisible.value = false
+    resetForm()
     loadQuestions()
   } catch (e) {
     console.error(e)
