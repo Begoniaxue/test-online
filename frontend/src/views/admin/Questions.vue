@@ -225,6 +225,27 @@ const handleDelete = (row) => {
 onMounted(() => {
   loadQuestions()
 })
+
+defineExpose({
+  questions,
+  currentPage,
+  pageSize,
+  dialogVisible,
+  isEdit,
+  form,
+  formRef,
+  answerArray,
+  pagedQuestions,
+  getInitialForm,
+  resetForm,
+  openAddDialog,
+  openEditDialog,
+  handleSubmit,
+  handleDelete,
+  handleSizeChange,
+  handleCurrentChange,
+  loadQuestions
+})
 </script>
 
 <style scoped>
