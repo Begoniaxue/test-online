@@ -72,7 +72,18 @@
           <el-input v-model="form.optionD" placeholder="请输入选项D" />
         </el-form-item>
         <el-form-item label="答案" prop="answer">
-          <el-input v-model="form.answer" placeholder="如A或ABD" />
+          <el-radio-group v-if="form.type === 'SINGLE'" v-model="form.answer">
+            <el-radio value="A">A</el-radio>
+            <el-radio value="B">B</el-radio>
+            <el-radio value="C">C</el-radio>
+            <el-radio value="D">D</el-radio>
+          </el-radio-group>
+          <el-checkbox-group v-else v-model="answerArray">
+            <el-checkbox value="A">A</el-checkbox>
+            <el-checkbox value="B">B</el-checkbox>
+            <el-checkbox value="C">C</el-checkbox>
+            <el-checkbox value="D">D</el-checkbox>
+          </el-checkbox-group>
         </el-form-item>
         <el-form-item label="分值" prop="score">
           <el-input-number v-model="form.score" :min="1" :max="100" />
@@ -87,7 +98,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getQuestions, addQuestion, updateQuestion, deleteQuestion } from '../../api'
 
@@ -111,11 +122,24 @@ const getInitialForm = () => ({
 })
 
 const form = ref(getInitialForm())
+const answerArray = ref([])
+
+watch(answerArray, (newVal) => {
+  if (form.value.type === 'MULTIPLE') {
+    form.value.answer = newVal.sort().join('')
+  }
+}, { deep: true })
+
+watch(() => form.value.type, () => {
+  answerArray.value = []
+  form.value.answer = ''
+})
 
 const resetForm = () => {
   if (formRef.value) {
     formRef.value.resetFields()
   }
+  answerArray.value = []
   form.value = getInitialForm()
 }
 
@@ -126,7 +150,7 @@ const rules = {
   optionB: [{ required: true, message: '请输入选项B', trigger: 'blur' }],
   optionC: [{ required: true, message: '请输入选项C', trigger: 'blur' }],
   optionD: [{ required: true, message: '请输入选项D', trigger: 'blur' }],
-  answer: [{ required: true, message: '请输入答案', trigger: 'blur' }]
+  answer: [{ required: true, message: '请选择答案', trigger: 'change' }]
 }
 
 const pagedQuestions = computed(() => {
@@ -159,6 +183,11 @@ const openEditDialog = (row) => {
   resetForm()
   nextTick(() => {
     form.value = { ...row }
+    nextTick(() => {
+      if (row.type === 'MULTIPLE' && row.answer) {
+        answerArray.value = row.answer.split('')
+      }
+    })
   })
   dialogVisible.value = true
 }
