@@ -11,7 +11,7 @@
         </div>
       </template>
       
-      <el-table :data="pagedQuestions" stripe style="width: 100%">
+      <el-table :data="questions" stripe>
         <el-table-column prop="id" label="ID" width="80" />
         <el-table-column prop="type" label="题型" width="100">
           <template #default="{ row }">
@@ -27,26 +27,13 @@
         <el-table-column prop="optionD" label="选项D" width="150" show-overflow-tooltip />
         <el-table-column prop="answer" label="答案" width="80" />
         <el-table-column prop="score" label="分值" width="80" />
-        <el-table-column label="操作" width="150" fixed="right">
+        <el-table-column label="操作" width="150">
           <template #default="{ row }">
             <el-button size="small" type="primary" link @click="openEditDialog(row)">编辑</el-button>
             <el-button size="small" type="danger" link @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
-
-      <div class="pagination-wrapper">
-        <el-pagination
-          v-model:current-page="currentPage"
-          v-model:page-size="pageSize"
-          :page-sizes="[5, 10, 20, 50]"
-          :total="questions.length"
-          layout="total, sizes, prev, pager, next, jumper"
-          background
-          @size-change="handleSizeChange"
-          @current-change="handleCurrentChange"
-        />
-      </div>
     </el-card>
 
     <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑题目' : '新增题目'" width="600px">
@@ -73,18 +60,7 @@
           <el-input v-model="form.optionD" placeholder="请输入选项D" />
         </el-form-item>
         <el-form-item label="答案" prop="answer">
-          <el-radio-group v-if="form.type === 'SINGLE'" v-model="answerValue">
-            <el-radio value="A">A. {{ form.optionA || '选项A' }}</el-radio>
-            <el-radio value="B">B. {{ form.optionB || '选项B' }}</el-radio>
-            <el-radio value="C">C. {{ form.optionC || '选项C' }}</el-radio>
-            <el-radio value="D">D. {{ form.optionD || '选项D' }}</el-radio>
-          </el-radio-group>
-          <el-checkbox-group v-else v-model="answerValue">
-            <el-checkbox value="A">A. {{ form.optionA || '选项A' }}</el-checkbox>
-            <el-checkbox value="B">B. {{ form.optionB || '选项B' }}</el-checkbox>
-            <el-checkbox value="C">C. {{ form.optionC || '选项C' }}</el-checkbox>
-            <el-checkbox value="D">D. {{ form.optionD || '选项D' }}</el-checkbox>
-          </el-checkbox-group>
+          <el-input v-model="form.answer" placeholder="如A或ABD" />
         </el-form-item>
         <el-form-item label="分值" prop="score">
           <el-input-number v-model="form.score" :min="1" :max="100" />
@@ -99,7 +75,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick, watch } from 'vue'
+import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getQuestions, addQuestion, updateQuestion, deleteQuestion } from '../../api'
 
@@ -107,26 +83,7 @@ const questions = ref([])
 const dialogVisible = ref(false)
 const isEdit = ref(false)
 const formRef = ref(null)
-const currentPage = ref(1)
-const pageSize = ref(10)
-const answerValue = ref('')
-
-const pagedQuestions = computed(() => {
-  const start = (currentPage.value - 1) * pageSize.value
-  const end = start + pageSize.value
-  return questions.value.slice(start, end)
-})
-
-const handleSizeChange = (size) => {
-  pageSize.value = size
-  currentPage.value = 1
-}
-
-const handleCurrentChange = (page) => {
-  currentPage.value = page
-}
-
-const getInitialForm = () => ({
+const form = ref({
   id: null,
   type: 'SINGLE',
   content: '',
@@ -138,8 +95,6 @@ const getInitialForm = () => ({
   score: 10
 })
 
-const form = ref(getInitialForm())
-
 const rules = {
   type: [{ required: true, message: '请选择题型', trigger: 'change' }],
   content: [{ required: true, message: '请输入题目内容', trigger: 'blur' }],
@@ -147,36 +102,8 @@ const rules = {
   optionB: [{ required: true, message: '请输入选项B', trigger: 'blur' }],
   optionC: [{ required: true, message: '请输入选项C', trigger: 'blur' }],
   optionD: [{ required: true, message: '请输入选项D', trigger: 'blur' }],
-  answer: [{ required: true, message: '请选择答案', trigger: 'change' }]
+  answer: [{ required: true, message: '请输入答案', trigger: 'blur' }]
 }
-
-const resetForm = () => {
-  form.value = getInitialForm()
-  answerValue.value = ''
-  nextTick(() => {
-    formRef.value?.clearValidate()
-  })
-}
-
-watch(() => form.value.type, (newType) => {
-  answerValue.value = newType === 'SINGLE' ? '' : []
-})
-
-watch(answerValue, (newVal) => {
-  if (form.value.type === 'SINGLE') {
-    form.value.answer = newVal || ''
-  } else {
-    form.value.answer = newVal && newVal.length > 0 ? newVal.sort().join('') : ''
-  }
-}, { deep: true })
-
-watch(dialogVisible, (val) => {
-  if (!val) {
-    nextTick(() => {
-      formRef.value?.clearValidate()
-    })
-  }
-})
 
 const loadQuestions = async () => {
   questions.value = await getQuestions()
@@ -184,31 +111,23 @@ const loadQuestions = async () => {
 
 const openAddDialog = () => {
   isEdit.value = false
-  resetForm()
+  form.value = {
+    id: null,
+    type: 'SINGLE',
+    content: '',
+    optionA: '',
+    optionB: '',
+    optionC: '',
+    optionD: '',
+    answer: '',
+    score: 10
+  }
   dialogVisible.value = true
 }
 
 const openEditDialog = (row) => {
   isEdit.value = true
-  form.value = {
-    id: row.id,
-    type: row.type,
-    content: row.content,
-    optionA: row.optionA,
-    optionB: row.optionB,
-    optionC: row.optionC,
-    optionD: row.optionD,
-    answer: row.answer,
-    score: row.score
-  }
-  if (row.type === 'SINGLE') {
-    answerValue.value = row.answer || ''
-  } else {
-    answerValue.value = row.answer ? row.answer.split('') : []
-  }
-  nextTick(() => {
-    formRef.value?.clearValidate()
-  })
+  form.value = { ...row }
   dialogVisible.value = true
 }
 
@@ -255,10 +174,5 @@ onMounted(() => {
 }
 .card-header h3 {
   margin: 0;
-}
-.pagination-wrapper {
-  margin-top: 20px;
-  display: flex;
-  justify-content: flex-end;
 }
 </style>
